@@ -35,40 +35,51 @@ has_cr_card = st.selectbox('Has Credit Card', [0, 1])
 is_active_member = st.selectbox('Is Active Member', [0, 1])
 
 # Add a Submit button
-submit_button = st.button(label='Predict')
+submit_button = st.button(label='Submit')
 
 # When the button is clicked
 if submit_button:
-    # Prepare the input data
-    input_data = pd.DataFrame({
-        'CreditScore': [credit_score],
-        'Gender': [label_encoder_gender.transform([gender])[0]],
-        'Age': [age],
-        'Tenure': [tenure],
-        'Balance': [balance],
-        'NumOfProducts': [num_of_products],
-        'HasCrCard': [has_cr_card],
-        'IsActiveMember': [is_active_member],
-        'EstimatedSalary': [estimated_salary]
-    })
+    try:
+        # Prepare the input data
+        input_data = pd.DataFrame({
+            'CreditScore': [credit_score],
+            'Gender': [label_encoder_gender.transform([gender])[0]],
+            'Age': [age],
+            'Tenure': [tenure],
+            'Balance': [balance],
+            'NumOfProducts': [num_of_products],
+            'HasCrCard': [has_cr_card],
+            'IsActiveMember': [is_active_member],
+            'EstimatedSalary': [estimated_salary]
+        })
 
-    # One-hot encode 'Geography'
-    geo_encoded = onehot_encoder_geo.transform([[geography]]).toarray()
-    geo_encoded_df = pd.DataFrame(geo_encoded, columns=onehot_encoder_geo.get_feature_names_out(['Geography']))
+        # One-hot encode 'Geography'
+        geo_encoded = onehot_encoder_geo.transform([[geography]]).toarray()
+        geo_encoded_df = pd.DataFrame(geo_encoded, columns=onehot_encoder_geo.get_feature_names_out(['Geography']))
 
-    # Combine one-hot encoded columns with input data
-    input_data = pd.concat([input_data.reset_index(drop=True), geo_encoded_df], axis=1)
+        # Combine one-hot encoded columns with input data
+        input_data = pd.concat([input_data.reset_index(drop=True), geo_encoded_df], axis=1)
 
-    # Scale the input data
-    input_data_scaled = scaler.transform(input_data)
+        # Ensure input data has correct columns
+        expected_columns = scaler.feature_names_in_  # Columns used when fitting the scaler
+        missing_columns = set(expected_columns) - set(input_data.columns)
+        for col in missing_columns:
+            input_data[col] = 0  # Add missing columns with default value 0
+        input_data = input_data[expected_columns]  # Reorder columns
 
-    # Predict churn
-    prediction = model.predict(input_data_scaled)
-    prediction_proba = prediction[0][0]
+        # Scale the input data
+        input_data_scaled = scaler.transform(input_data)
 
-    st.write(f'Churn Probability: {prediction_proba:.2f}')
+        # Predict churn
+        prediction = model.predict(input_data_scaled)
+        prediction_proba = prediction[0][0]
 
-    if prediction_proba > 0.5:
-        st.write('The customer is likely to churn.')
-    else:
-        st.write('The customer is not likely to churn.')
+        st.write(f'Churn Probability: {prediction_proba:.2f}')
+
+        if prediction_proba > 0.5:
+            st.write('The customer is likely to churn.')
+        else:
+            st.write('The customer is not likely to churn.')
+
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
